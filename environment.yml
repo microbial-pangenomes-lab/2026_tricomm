@@ -1,0 +1,14 @@
+name: 2026_tricomm
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+- python
+- pandas
+- openpyxl
+- numpy
+- scipy
+- matplotlib
+- seaborn
+- jupyterlab
+- nbconvert

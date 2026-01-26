@@ -1,4 +1,4 @@
-replicate	row	column	strain	treatment	grate
+replicate	row	column	strain	media	grate
 rep1	A	1	PL	M9+Cas	0.4428941657105241
 rep1	A	2	PL	M9+Cas	0.4281574022144543
 rep1	A	3	PL	M9+Cas	0.4392369939483673

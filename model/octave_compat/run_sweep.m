@@ -59,6 +59,9 @@ HELP = {
 '  --solver NAME      lsode (default here: ~5x faster) or ode45'
 '  --rtol X / --atol X  solver tolerances; unset = the solver default. lsode'
 '                     uses 1e-8/1e-11, ode45 its own 1e-3/1e-6 (= 10 CFU/mL).'
+'  --extinct-below X  zero a strain for good once its total drops below X'
+'                     CFU/mL (default 0 = off). Stops dead communities from'
+'                     growing back out of 1e-12 CFU/mL.'
 '  --set key=value    override a parameter before sweeping (repeatable)'
 '  --no-mse           skip the fit to the KAN data (roughly halves the runtime)'
 '  --quiet            write the files, print nothing'
@@ -146,7 +149,7 @@ O.tmax   = tmax;
 O.tstart = tstart;
 O.dt     = dt;
 O.solver = tricomm_opt(opt, 'solver', 'lsode');
-for f = {'community', 'antibiotic', 'dose', 'epsilon', 'eta', 'gamma', 'rtol', 'atol'}
+for f = {'community', 'antibiotic', 'dose', 'epsilon', 'eta', 'gamma', 'rtol', 'atol', 'extinct_below'}
     if isfield(opt, f{1}), O.(f{1}) = tricomm_opt(opt, f{1}, NaN, 'num'); end
 end
 if isfield(opt, 'ab0'),   O.Ab_init = tricomm_opt(opt, 'ab0',   NaN, 'num'); end

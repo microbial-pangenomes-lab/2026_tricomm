@@ -174,25 +174,21 @@ f = @(t, Y) dYdt_free(t, Y, params);
 rtol = pick(O, P, 'rtol', NaN);
 atol = pick(O, P, 'atol', NaN);
 
-switch lower(solver)
-    case 'ode45'
-        if isfinite(rtol) || isfinite(atol)
-            oo = odeset();
-            if isfinite(rtol), oo = odeset(oo, 'RelTol', rtol); end
-            if isfinite(atol), oo = odeset(oo, 'AbsTol', atol); end
-            [t, Y] = ode45(f, tvec, y0, oo);
-        else
-            [t, Y] = ode45(f, tvec, y0);
-        end
-    case 'lsode'
-        if ~isfinite(rtol), rtol = 1e-8;  end
-        if ~isfinite(atol), atol = 1e-11; end
-        lsode_options('relative tolerance', rtol);
-        lsode_options('absolute tolerance', atol);
-        t = tvec;
-        Y = lsode(@(Yv, tv) f(tv, Yv), y0, tvec);
-    otherwise
-        error('tricomm_simulate: unknown solver "%s" (use ode45 or lsode).', solver);
+% Absorbing extinction. Without it a strain that falls to 1e-12 CFU/mL is still
+% a population the solver can grow back, so a community that really died can
+% reappear decades later. extinct_below is in CFU/mL; 0 disables the rule, which
+% is the default and is what reproduces the published runs.
+extinct_below = pick(O, P, 'extinct_below', 0);
+if extinct_below < 0
+    error('tricomm_simulate: extinct_below must be >= 0, got %g.', extinct_below);
+end
+thresh = extinct_below / 1e7;      % CFU/mL -> model units
+
+if thresh > 0
+    [t, Y, S_ext] = integrate_absorbing(f, tvec, y0, solver, rtol, atol, thresh);
+else
+    [t, Y] = integrate_plain(f, tvec, y0, solver, rtol, atol);
+    S_ext = struct('strain', {{}}, 'time', []);
 end
 
 S = struct();
@@ -213,6 +209,8 @@ S.epsilon     = epsilon;
 S.eta         = eta;
 S.Ab_init     = Ab_init;
 S.Ab_in       = Ab_in;
+S.extinct_below = extinct_below;
+S.extinctions   = S_ext;      % .strain (cellstr) and .time, in order
 S.gamma       = gamma;
 % The plateau the antibiotic relaxes to. Zero without a feed.
 S.Ab_star     = Ab_in * P.delta / (gamma + P.delta);
@@ -274,4 +272,95 @@ switch community
 end
 
 abc = src(1, cols);
+end
+
+% ---------------------------------------------------------------------------
+function [t, Y] = integrate_plain(f, tvec, y0, solver, rtol, atol)
+% One solver call over the whole grid. ode45 with a two-element tspan returns
+% its own internal steps rather than the two requested points, so a midpoint is
+% inserted and dropped again -- integrate_absorbing restarts on short spans.
+switch lower(solver)
+    case 'ode45'
+        pad = numel(tvec) == 2;
+        tq  = tvec;
+        if pad, tq = [tvec(1); mean(tvec); tvec(2)]; end
+        if isfinite(rtol) || isfinite(atol)
+            oo = odeset();
+            if isfinite(rtol), oo = odeset(oo, 'RelTol', rtol); end
+            if isfinite(atol), oo = odeset(oo, 'AbsTol', atol); end
+            [t, Y] = ode45(f, tq, y0, oo);
+        else
+            [t, Y] = ode45(f, tq, y0);
+        end
+        if pad, t = t([1 3]); Y = Y([1 3], :); end
+    case 'lsode'
+        if ~isfinite(rtol), rtol = 1e-8;  end
+        if ~isfinite(atol), atol = 1e-11; end
+        lsode_options('relative tolerance', rtol);
+        lsode_options('absolute tolerance', atol);
+        t = tvec(:);
+        Y = lsode(@(Yv, tv) f(tv, Yv), y0, tvec);
+    otherwise
+        error('tricomm_simulate: unknown solver "%s" (use ode45 or lsode).', solver);
+end
+end
+
+% ---------------------------------------------------------------------------
+function [t, Y, ext] = integrate_absorbing(f, tvec, y0, solver, rtol, atol, thresh)
+% Integrate with extinction as an absorbing state: as soon as a strain TOTAL
+% (sensitive + resistant) falls below thresh, both of its compartments are set
+% to zero and the run continues without them.
+%
+% Setting the state to zero once is NOT enough. Every term that could refill the
+% compartment is proportional to it, so in exact arithmetic it would stay zero --
+% but solver roundoff leaves it at ~1e-12 instead, and the growth term amplifies
+% that back into a population. So the dead compartments are masked out of the
+% right-hand side for the rest of the run: the state is zeroed on the way in and
+% the derivative on the way out, which holds them at exactly zero and removes
+% their amino acid production, which is the point of the rule.
+%
+% Detection resolves to the output grid, so a strain is zeroed at the first
+% output time at which it is already below thresh -- up to one dt late. Shrink
+% --dt if the crossing time itself matters.
+PAIRS  = {[1 2], [3 4], [5 6]};
+LABELS = {'LM', 'PM', 'PL'};
+
+nt = numel(tvec);
+t  = tvec(:);
+Y  = zeros(nt, numel(y0));
+Y(1, :) = y0(:).';
+
+mask = ones(numel(y0), 1);
+dead = false(1, 3);
+ext  = struct('strain', {{}}, 'time', []);
+i0   = 1;
+
+while i0 < nt
+    fm = @(tt, Yv) mask .* f(tt, mask .* Yv);
+    [~, Yseg] = integrate_plain(fm, tvec(i0:end), mask .* Y(i0, :).', ...
+                                solver, rtol, atol);
+    Yseg = Yseg .* mask.';
+
+    hit = 0; hitk = 0;
+    for p = 1:3
+        if dead(p), continue; end
+        k = find(sum(Yseg(:, PAIRS{p}), 2) < thresh, 1);
+        if ~isempty(k) && (hitk == 0 || k < hitk)
+            hitk = k; hit = p;
+        end
+    end
+
+    if hit == 0
+        Y(i0:nt, :) = Yseg;
+        return
+    end
+
+    Y(i0:i0+hitk-1, :) = Yseg(1:hitk, :);
+    mask(PAIRS{hit}) = 0;
+    Y(i0+hitk-1, PAIRS{hit}) = 0;
+    dead(hit) = true;
+    ext.strain{end+1} = LABELS{hit};
+    ext.time(end+1)   = tvec(i0 + hitk - 1);
+    i0 = i0 + hitk - 1;      % unchanged when hitk == 1; dead() stops a re-trigger
+end
 end

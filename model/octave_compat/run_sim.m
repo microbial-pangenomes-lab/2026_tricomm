@@ -29,6 +29,10 @@ HELP = {
 '  --tstart H         first output time (default 1)'
 '  --dt H             output step (default 1)'
 '  --solver NAME      ode45 (default, matches the published scripts) or lsode'
+'  --extinct-below X  a strain whose TOTAL (sensitive+resistant) falls below X'
+'                     CFU/mL is set to zero for the rest of the run, so'
+'                     extinction is absorbing. Default 0 = off (published'
+'                     behaviour). Use 1 for one cell per mL.'
 '  --rtol X / --atol X  solver tolerances. Unset = the solver default, which'
 '                     for ode45 is what the published runs used. ode45 defaults'
 '                     to AbsTol 1e-6 = 10 CFU/mL here, so tighten both when the'
@@ -116,7 +120,7 @@ end
 %% ---- Run ----------------------------------------------------------------
 O = struct();
 for f = {'community', 'antibiotic', 'dose', 'tmax', 'tstart', 'dt', ...
-         'epsilon', 'eta', 'gamma', 'rtol', 'atol'}
+         'epsilon', 'eta', 'gamma', 'rtol', 'atol', 'extinct_below'}
     if isfield(opt, f{1}), O.(f{1}) = tricomm_opt(opt, f{1}, NaN, 'num'); end
 end
 if isfield(opt, 'ab0'),   O.Ab_init = tricomm_opt(opt, 'ab0',   NaN, 'num'); end

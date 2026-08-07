@@ -1,0 +1,30 @@
+# ori_par.par -- the original published parameter set.
+#
+# THIS IS THE SET THE REPO SCRIPTS ARE WIRED TO. Every script under model/
+# carries these values inline, exactly as published; data/model/nodrug_1100h.csv
+# is generated from them.
+#
+# Sent 2026-07-31 as
+#   parCal = [0.0003, 0.0005, 0.0004, 0.7645, 0.0567, 0.1202, 0.0692];
+#
+#   R = 1.0076495   ->  unbounded growth, slowly
+#   alpha_C would have to be 0.119174 for R = 1; this set is 0.9% above it.
+#   MSE = 1.002 vs the KAN no-drug replicates (the worst of the four sets)
+#   mu ratio 1 : 1.67 : 1.33, against the measured 1 : 9.66 : 4.03
+#
+# This is what the published figures were made with, and what the email proposes
+# keeping for the later part of the paper. It fits the KAN data worst of the four
+# and, like the others, sits just above R = 1. Its one advantage is the largest
+# oscillation amplitude (sd 0.233 in log10 total biomass, against 0.125 for
+# solved.par), which is what makes the published time-course figures look lively.
+
+label = ori_par (original published)
+
+parCal = [0.0003, 0.0005, 0.0004, 0.7645, 0.0567, 0.1202, 0.0692];
+
+epsilon      = 1
+eta          = 0.005
+Ab_init      = 0.18
+scale_factor = 1.1
+
+community = 0

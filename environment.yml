@@ -12,5 +12,6 @@ dependencies:
 - seaborn
 - jupyterlab
 - nbconvert
+- octave
 - pip:
   - git+https://github.com/microbial-pangenomes-lab/plate_reader_evolution.git

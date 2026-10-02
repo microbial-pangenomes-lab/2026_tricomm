@@ -11,7 +11,8 @@ or change them.
 
 | Path | Contents |
 |------|----------|
-| `data/<experiment>/` | Raw measurements (Chi.bio logs, plate counts, flow cytometry, plate reader) for each experiment (`pOXA48`, `PN23`, `long`, `control`, `batch`, `calibration`), plus the notebook that parses them into tidy tables (`chibio.tsv.gz`, `plate_counts.tsv`, `flow_cytometer.tsv`, ...) |
+| `data/<experiment>/` | Raw measurements (Chi.bio logs, plate counts, flow cytometry, plate reader) for each experiment (`pOXA48`, `PN23`, `long`, `control`, `batch`, `calibration`, `pairs`), plus the notebook that parses them into tidy tables (`chibio.tsv.gz`, `plate_counts.tsv`, `flow_cytometer.tsv`, ...) |
+| `data/pairs/` | Chi.bio run with every pair of strains and the full three-strain community; parsed by `analysis.ipynb` into `chibio.tsv.gz` |
 | `data/model/` | Model outputs (`*.tsv`) and the interpolated experimental input to the model (`*_interpolated.csv`) |
 | `model/` | MATLAB model scripts; `model/octave_compat/` has Octave-compatible versions and the `run_sim.m`/`run_sweep.m` command-line tools |
 | `model/params/params.par` | Model parameters |
@@ -41,7 +42,8 @@ Run the steps in this order; each one overwrites the committed files.
    ```
 
    Same for `data/PN23/parsing.ipynb`, `data/long/parsing.ipynb`,
-   `data/control/analysis.ipynb`, `data/batch/parse_time_series.ipynb` and
+   `data/control/analysis.ipynb`, `data/pairs/analysis.ipynb`,
+   `data/batch/parse_time_series.ipynb` and
    `data/calibration/calibration.ipynb`.
 
 2. Build the model input from the pOXA48 plate counts (from the repo root):
